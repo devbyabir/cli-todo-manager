@@ -88,15 +88,17 @@ class Task:
             raise ValueError("Task 'completed' must be true or false.")
         if not isinstance(data.get("created_at"), str):
             raise ValueError("Task 'created_at' must be a timestamp.")
-
         completed_at = data.get("completed_at")
+        if completed_at is not None and not isinstance(completed_at, str):
+            raise ValueError("Task 'completed_at' must be a timestamp or null.")
+
         return cls(
             id=data["id"],
             title=data["title"],
             description=data.get("description", ""),
             completed=data["completed"],
             created_at=parse_timestamp(data["created_at"]),
-            completed_at=parse_timestamp(completed_at) if completed_at else None,
+            completed_at=parse_timestamp(completed_at) if completed_at is not None else None,
         )
 
 
@@ -197,4 +199,8 @@ class TodoManager:
             raise ValueError("'next_id' must be a positive integer.")
         if not isinstance(tasks, list) or not all(isinstance(t, dict) for t in tasks):
             raise ValueError("'tasks' must be a list of task objects.")
-        return cls([Task.from_dict(item) for item in tasks], next_id)
+        loaded = [Task.from_dict(item) for item in tasks]
+        ids = [task.id for task in loaded]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Task IDs must be unique.")
+        return cls(loaded, next_id)

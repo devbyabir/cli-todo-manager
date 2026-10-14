@@ -79,7 +79,7 @@ You need **Python 3.12 or newer** and **git**.
 **1. Clone the repository**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/devbyabir/cli-todo-manager.git
 cd cli-todo-manager
 ```
 

@@ -101,6 +101,35 @@ def test_corrupted_file_is_backed_up(data_file, content):
     assert not data_file.exists()
 
 
+VALID_TASK = (
+    '{"id": 1, "title": "A", "description": "", "completed": true, '
+    '"created_at": "2026-01-01T00:00:00+00:00", "completed_at": %s}'
+)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        '{"next_id": 2, "tasks": [%s]}' % (VALID_TASK % "123"),
+        '{"next_id": 2, "tasks": [%s]}' % (VALID_TASK % "[]"),
+        '{"next_id": 2, "tasks": [%s]}' % (VALID_TASK % '"not a date"'),
+        '{"next_id": 3, "tasks": [%s, %s]}' % (VALID_TASK % "null", VALID_TASK % "null"),
+    ],
+    ids=["completed_at-number", "completed_at-list", "completed_at-bad-text", "duplicate-ids"],
+)
+def test_malformed_task_data_is_backed_up_byte_for_byte(data_file, content):
+    original = content.encode("utf-8")
+    data_file.write_bytes(original)
+
+    manager, backup = storage.load(data_file)
+
+    assert manager.tasks == []
+    assert manager.next_id == 1
+    assert backup == data_file.with_name("tasks.json.bak")
+    assert backup.read_bytes() == original
+    assert not data_file.exists()
+
+
 def test_existing_backup_is_not_overwritten(data_file):
     old_backup = data_file.with_name("tasks.json.bak")
     old_backup.write_text("older backup", encoding="utf-8")

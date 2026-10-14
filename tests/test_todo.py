@@ -217,3 +217,57 @@ def test_to_dict_and_from_dict_round_trip(manager):
 def test_from_dict_rejects_invalid_task():
     with pytest.raises(ValueError):
         TodoManager.from_dict({"next_id": 2, "tasks": [{"id": "one"}]})
+
+
+def _task_data(**changes) -> dict:
+    data = {
+        "id": 1,
+        "title": "T",
+        "description": "",
+        "completed": True,
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "completed_at": "2026-01-02T08:30:00+00:00",
+    }
+    data.update(changes)
+    return data
+
+
+@pytest.mark.parametrize("completed_at", [123, 0, False, True, [], {}])
+def test_from_dict_rejects_completed_at_that_is_not_text_or_null(completed_at):
+    with pytest.raises(ValueError, match="completed_at"):
+        Task.from_dict(_task_data(completed_at=completed_at))
+
+
+def test_from_dict_accepts_completed_at_timestamp():
+    task = Task.from_dict(_task_data())
+
+    assert task.completed_at.isoformat() == "2026-01-02T08:30:00+00:00"
+
+
+def test_from_dict_accepts_null_completed_at():
+    task = Task.from_dict(_task_data(completed=False, completed_at=None))
+
+    assert task.completed_at is None
+
+
+def test_from_dict_accepts_missing_completed_at():
+    data = _task_data(completed=False)
+    del data["completed_at"]
+
+    assert Task.from_dict(data).completed_at is None
+
+
+def test_from_dict_rejects_duplicate_task_ids():
+    data = {"next_id": 3, "tasks": [_task_data(), _task_data(title="Other")]}
+
+    with pytest.raises(ValueError, match="unique"):
+        TodoManager.from_dict(data)
+
+
+def test_from_dict_keeps_next_id_for_unique_ids():
+    data = {"next_id": 5, "tasks": [_task_data(id=1), _task_data(id=3)]}
+
+    restored = TodoManager.from_dict(data)
+
+    assert [task.id for task in restored.tasks] == [1, 3]
+    assert restored.add("New").id == 5
